@@ -22,7 +22,7 @@ class SingleLiveEvent<T> : MediatorLiveData<T>() {
 
     @MainThread
     override fun observe(owner: LifecycleOwner, observer: Observer<in T>) {
-        RfLogger.d("DmNokhrin", "SingleLiveEvent::observe: ")//DmNokhrin
+        RfLogger.d("DmNokhrin", "SingleLiveEvent::observe: dataIsSent:${dataIsSent.get()}    observer:$observer")//DmNokhrin
         val wrapper = ObserverWrapper(observer)
         val set = observers[owner]
         set?.apply {
@@ -32,7 +32,10 @@ class SingleLiveEvent<T> : MediatorLiveData<T>() {
             newSet.add(wrapper)
             observers[owner] = newSet
         }
-        if() value?.let { observer.onChanged(it) }
+        if(!dataIsSent.get()) value?.let {
+            observer.onChanged(it)
+            dataIsSent.set(true)
+        }
         super.observe(owner, wrapper)
     }
 
@@ -97,7 +100,7 @@ class SingleLiveEvent<T> : MediatorLiveData<T>() {
 
     @MainThread
     override fun setValue(t: T?) {
-        RfLogger.d("DmNokhrin", "SingleLiveEvent::setValue: ")//DmNokhrin
+        RfLogger.d("DmNokhrin", "SingleLiveEvent::setValue: $t")//DmNokhrin
         if (!hasObservers()) dataIsSent.set(false)
         else dataIsSent.set(true)
         observers.forEach { it.value.forEach { wrapper -> wrapper.newValue() } }

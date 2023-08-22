@@ -3,7 +3,11 @@ package com.nokhrin.singlelivedatatest
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -11,7 +15,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import com.nokhrin.singlelivedatatest.ui.theme.SingleLiveDataTestTheme
 import com.siber.gsserver.utils.SingleLiveEvent
@@ -19,10 +26,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Date
 
 class MainActivity : ComponentActivity() {
-    private val resultMutableLiveData: SingleLiveEvent<String> = SingleLiveEvent()
-    val resultLiveData: LiveData<String> = resultMutableLiveData
+    private val viewModel by viewModels<MainViewModel>()
+    private val observer = Observer<String> {
+        RfLogger.d("DmNokhrin", "MainActivity::observerForever: message:$it")//DmNokhrin
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -32,27 +43,53 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Greeting("Android")
+                    Column() {
+                        Button(
+                            onClick = {
+                                viewModel.resultLiveData.observe(this@MainActivity) {
+                                    RfLogger.d("DmNokhrin", "MainActivity::${this@MainActivity}: first observer: message:$it")//DmNokhrin
+                                }
+                            }
+                        ) {
+                            Text("first observer")
+                        }
+                        Button(
+                            onClick = {
+                                viewModel.resultLiveData.observe(this@MainActivity) {
+                                    RfLogger.d("DmNokhrin", "MainActivity::${this@MainActivity}: second observer: message:$it")//DmNokhrin
+                                }
+                            }
+                        ) {
+                            Text("second observer")
+                        }
+                        Button(
+                            onClick = {
+                                viewModel.resultLiveData.observeForever(observer)
+                            }
+                        ) {
+                            Text("observe forever")
+                        }
+                        Button(
+                            onClick = {
+                                viewModel.resultLiveData.removeObserver(observer)
+                            }
+                        ) {
+                            Text("remove forever")
+                        }
+                        Button(
+                            onClick = {
+                                viewModel.resultMutableLiveData.postValue("Message time: ${Date().time}")
+                            }
+                        ) {
+                            Text("send message")
+                        }
+                    }
                 }
             }
         }
-        lifecycleScope.launch(Dispatchers.IO) {
-            RfLogger.d("DmNokhrin", "MainActivity::onCreate: send firstMessage")//DmNokhrin
-            resultMutableLiveData.postValue("firstMessage")
-            delay(1500)
-            withContext(Dispatchers.Main) {
-                RfLogger.d("DmNokhrin", "MainActivity::onCreate: observe after delay")//DmNokhrin
-                resultLiveData.observe(this@MainActivity){
-                    RfLogger.d("DmNokhrin", "MainActivity::onCreate: observe message:$it")//DmNokhrin
-                }
-            }
-            delay(1500)
-            RfLogger.d("DmNokhrin", "MainActivity::onCreate: post second message")//DmNokhrin
-            resultMutableLiveData.postValue("secondMessage")
-        }
-
     }
 }
+
 
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
@@ -60,11 +97,7 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
         text = "Hello $name!",
         modifier = modifier
     )
-    Button(onClick = {
-        RfLogger.d("DmNokhrin", "onClick::Greeting: ")//DmNokhrin
-    }) {
 
-    }
 }
 
 @Preview(showBackground = true)
